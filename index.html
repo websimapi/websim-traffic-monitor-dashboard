@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Monitor Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <h1>Traffic Monitor</h1>
+            <div class="status-indicators">
+                <div class="indicator" id="camera-status">
+                    <span class="indicator-dot"></span>
+                    <span>Camera</span>
+                </div>
+                <div class="indicator" id="gps-status">
+                    <span class="indicator-dot"></span>
+                    <span>GPS</span>
+                </div>
+                <div class="indicator" id="detection-status">
+                    <span class="indicator-dot"></span>
+                    <span>Detection</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="overlay"></canvas>
+                    <div class="video-controls">
+                        <button id="toggleCamera" class="btn primary">Start Camera</button>
+                        <button id="toggleRecording" class="btn secondary" disabled>Start Recording</button>
+                        <button id="captureFrame" class="btn secondary" disabled>Capture</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="speed-section">
+                    <div class="speed-display">
+                        <h3>Current Speed</h3>
+                        <div class="speed-value" id="currentSpeed">0</div>
+                        <div class="speed-unit">mph</div>
+                    </div>
+                </div>
+
+                <div class="detection-section">
+                    <h3>Live Detections</h3>
+                    <div class="detection-list" id="detectionList">
+                        <div class="no-detections">No vehicles detected</div>
+                    </div>
+                </div>
+
+                <div class="plate-section">
+                    <h3>License Plates</h3>
+                    <div class="plate-list" id="plateList">
+                        <div class="no-plates">No plates detected</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-label">Vehicles Detected</span>
+                <span class="stat-value" id="vehicleCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Plates Read</span>
+                <span class="stat-value" id="plateCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Recording Time</span>
+                <span class="stat-value" id="recordingTime">00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "opencv": "https://docs.opencv.org/4.8.0/opencv.js"
+        }
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+    <script src="camera.js"></script>
+    <script src="detection.js"></script>
+    <script src="speed.js"></script>
+    <script src="app.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
