@@ -25,10 +25,12 @@ class TrafficMonitorApp {
         const toggleCameraBtn = document.getElementById('toggleCamera');
         const toggleRecordingBtn = document.getElementById('toggleRecording');
         const captureFrameBtn = document.getElementById('captureFrame');
+        const clearPlateHistoryBtn = document.getElementById('clearPlateHistory');
 
         toggleCameraBtn.addEventListener('click', () => this.toggleCamera());
         toggleRecordingBtn.addEventListener('click', () => this.toggleRecording());
         captureFrameBtn.addEventListener('click', () => this.captureFrame());
+        clearPlateHistoryBtn.addEventListener('click', () => this.clearPlateHistory());
 
         // Handle window resize
         window.addEventListener('resize', () => this.handleResize());
@@ -161,6 +163,11 @@ class TrafficMonitorApp {
         }
     }
 
+    clearPlateHistory() {
+        this.detection.plateImages = [];
+        this.detection.updatePlateListFromDetections();
+    }
+
     handleResize() {
         if (this.camera.isActive) {
             this.setupOverlay();
@@ -172,4 +179,3 @@ class TrafficMonitorApp {
 document.addEventListener('DOMContentLoaded', () => {
     new TrafficMonitorApp();
 });
-

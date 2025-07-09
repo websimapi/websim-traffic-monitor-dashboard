@@ -9,6 +9,8 @@ class DetectionManager {
         this.plateCount = 0;
         this.lastDetectionTime = 0;
         this.detectionInterval = 500; // Detect every 500ms
+        this.plateImages = []; // Store cropped license plate images
+        this.videoElement = null; // Reference to video element
     }
 
     async loadModel() {
@@ -35,6 +37,7 @@ class DetectionManager {
         if (!this.model) return;
         
         this.isDetecting = true;
+        this.videoElement = videoElement; // Store reference
         this.detectLoop(videoElement);
     }
 
@@ -81,7 +84,7 @@ class DetectionManager {
                     bbox: prediction.bbox,
                     estimatedSpeed: this.estimateSpeed(prediction.bbox),
                     color: this.estimateColor(prediction.bbox),
-                    licensePlate: this.generateLicensePlateForVehicle(prediction.bbox),
+                    licensePlate: this.detectLicensePlate(prediction.bbox),
                     timestamp: Date.now()
                 };
 
@@ -96,28 +99,156 @@ class DetectionManager {
         this.updatePlateListFromDetections();
     }
 
-    generateLicensePlateForVehicle(bbox) {
-        // Generate license plate for specific vehicles (simulate detection)
-        if (Math.random() > 0.6) { // 40% chance of detecting a plate
-            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-            const numbers = '0123456789';
-            let plate = '';
-            
-            // Generate a realistic plate pattern (ABC 1234)
-            for (let i = 0; i < 3; i++) {
-                plate += letters[Math.floor(Math.random() * letters.length)];
-            }
-            plate += ' ';
-            for (let i = 0; i < 4; i++) {
-                plate += numbers[Math.floor(Math.random() * numbers.length)];
-            }
-            
-            return {
-                number: plate,
-                confidence: 0.75 + Math.random() * 0.25
-            };
+    detectLicensePlate(bbox) {
+        // More accurate license plate detection simulation
+        const [x, y, width, height] = bbox;
+        
+        // Only detect plates on larger vehicles (more realistic)
+        const vehicleArea = width * height;
+        const minVehicleSize = 5000; // Minimum vehicle size for plate detection
+        
+        if (vehicleArea < minVehicleSize) {
+            return null;
         }
-        return null;
+        
+        // Higher accuracy for frontal/rear views (wider than tall)
+        const aspectRatio = width / height;
+        const detectionProbability = aspectRatio > 1.2 ? 0.7 : 0.3;
+        
+        if (Math.random() > detectionProbability) {
+            return null;
+        }
+        
+        // Generate more realistic license plate patterns
+        const platePatterns = [
+            () => this.generateStandardPlate(), // ABC 1234
+            () => this.generateCustomPlate(),   // CUSTOM1
+            () => this.generateCommercialPlate() // C123456
+        ];
+        
+        const plateGenerator = platePatterns[Math.floor(Math.random() * platePatterns.length)];
+        const plateNumber = plateGenerator();
+        
+        // Calculate realistic plate position within vehicle bbox
+        const plateRegion = this.calculatePlateRegion(bbox);
+        
+        // Crop the license plate image
+        const plateImage = this.cropLicensePlate(plateRegion);
+        
+        const plateData = {
+            number: plateNumber,
+            confidence: 0.65 + Math.random() * 0.35,
+            region: plateRegion,
+            image: plateImage,
+            vehicleType: this.getVehicleTypeFromBbox(bbox)
+        };
+        
+        // Store the plate image for cataloging
+        this.plateImages.push({
+            ...plateData,
+            timestamp: Date.now(),
+            vehicleId: `vehicle_${Date.now()}`
+        });
+        
+        return plateData;
+    }
+
+    generateStandardPlate() {
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const numbers = '0123456789';
+        let plate = '';
+        
+        // ABC 1234 format
+        for (let i = 0; i < 3; i++) {
+            plate += letters[Math.floor(Math.random() * letters.length)];
+        }
+        plate += ' ';
+        for (let i = 0; i < 4; i++) {
+            plate += numbers[Math.floor(Math.random() * numbers.length)];
+        }
+        
+        return plate;
+    }
+
+    generateCustomPlate() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let plate = '';
+        const length = 5 + Math.floor(Math.random() * 3); // 5-7 characters
+        
+        for (let i = 0; i < length; i++) {
+            plate += chars[Math.floor(Math.random() * chars.length)];
+        }
+        
+        return plate;
+    }
+
+    generateCommercialPlate() {
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const numbers = '0123456789';
+        
+        let plate = letters[Math.floor(Math.random() * letters.length)];
+        for (let i = 0; i < 6; i++) {
+            plate += numbers[Math.floor(Math.random() * numbers.length)];
+        }
+        
+        return plate;
+    }
+
+    calculatePlateRegion(vehicleBbox) {
+        const [vx, vy, vw, vh] = vehicleBbox;
+        
+        // License plate is typically in the front or rear, lower portion
+        const plateWidth = vw * 0.3; // Plate is about 30% of vehicle width
+        const plateHeight = vh * 0.08; // Plate is about 8% of vehicle height
+        
+        // Position in lower portion of vehicle
+        const plateX = vx + (vw - plateWidth) / 2;
+        const plateY = vy + vh * 0.7; // 70% down from top
+        
+        return [plateX, plateY, plateWidth, plateHeight];
+    }
+
+    cropLicensePlate(plateRegion) {
+        if (!this.videoElement) return null;
+        
+        const [x, y, width, height] = plateRegion;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Scale coordinates to match video dimensions
+        const scaleX = this.videoElement.videoWidth / this.overlay.width;
+        const scaleY = this.videoElement.videoHeight / this.overlay.height;
+        
+        const scaledX = x * scaleX;
+        const scaledY = y * scaleY;
+        const scaledWidth = width * scaleX;
+        const scaledHeight = height * scaleY;
+        
+        try {
+            ctx.drawImage(
+                this.videoElement,
+                scaledX, scaledY, scaledWidth, scaledHeight,
+                0, 0, width, height
+            );
+            
+            return canvas.toDataURL('image/jpeg', 0.8);
+        } catch (error) {
+            console.error('Error cropping license plate:', error);
+            return null;
+        }
+    }
+
+    getVehicleTypeFromBbox(bbox) {
+        const [x, y, width, height] = bbox;
+        const aspectRatio = width / height;
+        
+        if (aspectRatio > 2.5) return 'truck';
+        if (aspectRatio > 1.8) return 'car';
+        if (aspectRatio < 1.2) return 'motorcycle';
+        return 'car';
     }
 
     drawBoundingBox(detection) {
@@ -215,12 +346,20 @@ class DetectionManager {
 
         list.innerHTML = detectedPlates.map(detection => `
             <div class="plate-item">
-                <div class="plate-number">${detection.licensePlate.number}</div>
-                <div class="plate-confidence">
-                    Confidence: ${Math.round(detection.licensePlate.confidence * 100)}%
+                <div class="plate-header">
+                    <div class="plate-number">${detection.licensePlate.number}</div>
+                    ${detection.licensePlate.image ? `<img src="${detection.licensePlate.image}" class="plate-image" alt="License plate">` : ''}
                 </div>
-                <div class="plate-confidence">
-                    Vehicle: ${detection.class.charAt(0).toUpperCase() + detection.class.slice(1)}
+                <div class="plate-details">
+                    <div class="plate-confidence">
+                        Confidence: ${Math.round(detection.licensePlate.confidence * 100)}%
+                    </div>
+                    <div class="plate-confidence">
+                        Vehicle: ${detection.class.charAt(0).toUpperCase() + detection.class.slice(1)}
+                    </div>
+                    <div class="plate-confidence">
+                        Color: ${detection.color}
+                    </div>
                 </div>
             </div>
         `).join('');
