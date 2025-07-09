@@ -81,6 +81,7 @@ class DetectionManager {
                     bbox: prediction.bbox,
                     estimatedSpeed: this.estimateSpeed(prediction.bbox),
                     color: this.estimateColor(prediction.bbox),
+                    licensePlate: this.generateLicensePlateForVehicle(prediction.bbox),
                     timestamp: Date.now()
                 };
 
@@ -92,9 +93,31 @@ class DetectionManager {
         this.detections = newDetections;
         this.updateDetectionList();
         this.updateVehicleCount();
-        
-        // Simulate license plate detection
-        this.simulatePlateDetection();
+        this.updatePlateListFromDetections();
+    }
+
+    generateLicensePlateForVehicle(bbox) {
+        // Generate license plate for specific vehicles (simulate detection)
+        if (Math.random() > 0.6) { // 40% chance of detecting a plate
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const numbers = '0123456789';
+            let plate = '';
+            
+            // Generate a realistic plate pattern (ABC 1234)
+            for (let i = 0; i < 3; i++) {
+                plate += letters[Math.floor(Math.random() * letters.length)];
+            }
+            plate += ' ';
+            for (let i = 0; i < 4; i++) {
+                plate += numbers[Math.floor(Math.random() * numbers.length)];
+            }
+            
+            return {
+                number: plate,
+                confidence: 0.75 + Math.random() * 0.25
+            };
+        }
+        return null;
     }
 
     drawBoundingBox(detection) {
@@ -104,9 +127,12 @@ class DetectionManager {
         this.ctx.lineWidth = 3;
         this.ctx.strokeRect(x, y, width, height);
         
+        // Calculate label height based on content
+        const labelHeight = detection.licensePlate ? 50 : 30;
+        
         // Label background
         this.ctx.fillStyle = 'rgba(0, 255, 136, 0.8)';
-        this.ctx.fillRect(x, y - 30, width, 30);
+        this.ctx.fillRect(x, y - labelHeight, width, labelHeight);
         
         // Label text
         this.ctx.fillStyle = '#000';
@@ -114,8 +140,19 @@ class DetectionManager {
         this.ctx.fillText(
             `${detection.class} (${Math.round(detection.confidence * 100)}%)`,
             x + 5,
-            y - 8
+            y - labelHeight + 18
         );
+        
+        // License plate text if available
+        if (detection.licensePlate) {
+            this.ctx.fillStyle = '#000';
+            this.ctx.font = 'bold 14px Arial';
+            this.ctx.fillText(
+                `License: ${detection.licensePlate.number}`,
+                x + 5,
+                y - labelHeight + 35
+            );
+        }
         
         // Speed estimate
         this.ctx.fillStyle = '#fff';
@@ -142,43 +179,6 @@ class DetectionManager {
         return colors[Math.floor(Math.random() * colors.length)];
     }
 
-    simulatePlateDetection() {
-        // Simulate license plate detection for demo purposes
-        if (this.detections.length > 0 && Math.random() > 0.7) {
-            const plateNumber = this.generatePlateNumber();
-            const plateData = {
-                number: plateNumber,
-                confidence: 0.85 + Math.random() * 0.15,
-                timestamp: Date.now()
-            };
-            
-            this.addPlateDetection(plateData);
-        }
-    }
-
-    generatePlateNumber() {
-        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const numbers = '0123456789';
-        let plate = '';
-        
-        // Generate a realistic plate pattern (ABC 1234)
-        for (let i = 0; i < 3; i++) {
-            plate += letters[Math.floor(Math.random() * letters.length)];
-        }
-        plate += ' ';
-        for (let i = 0; i < 4; i++) {
-            plate += numbers[Math.floor(Math.random() * numbers.length)];
-        }
-        
-        return plate;
-    }
-
-    addPlateDetection(plateData) {
-        this.plateCount++;
-        this.updatePlateList(plateData);
-        this.updatePlateCount();
-    }
-
     updateDetectionList() {
         const list = document.getElementById('detectionList');
         
@@ -192,6 +192,7 @@ class DetectionManager {
                 <div class="vehicle-info">
                     ${detection.class.charAt(0).toUpperCase() + detection.class.slice(1)} 
                     (${Math.round(detection.confidence * 100)}% confidence)
+                    ${detection.licensePlate ? `<br>License: ${detection.licensePlate.number}` : ''}
                 </div>
                 <div class="speed-estimate">
                     Estimated speed: ${detection.estimatedSpeed} mph
@@ -203,28 +204,30 @@ class DetectionManager {
         `).join('');
     }
 
-    updatePlateList(plateData) {
+    updatePlateListFromDetections() {
         const list = document.getElementById('plateList');
+        const detectedPlates = this.detections.filter(d => d.licensePlate);
         
-        if (list.querySelector('.no-plates')) {
-            list.innerHTML = '';
+        if (detectedPlates.length === 0) {
+            list.innerHTML = '<div class="no-plates">No plates detected</div>';
+            return;
         }
 
-        const plateItem = document.createElement('div');
-        plateItem.className = 'plate-item';
-        plateItem.innerHTML = `
-            <div class="plate-number">${plateData.number}</div>
-            <div class="plate-confidence">
-                Confidence: ${Math.round(plateData.confidence * 100)}%
+        list.innerHTML = detectedPlates.map(detection => `
+            <div class="plate-item">
+                <div class="plate-number">${detection.licensePlate.number}</div>
+                <div class="plate-confidence">
+                    Confidence: ${Math.round(detection.licensePlate.confidence * 100)}%
+                </div>
+                <div class="plate-confidence">
+                    Vehicle: ${detection.class.charAt(0).toUpperCase() + detection.class.slice(1)}
+                </div>
             </div>
-        `;
+        `).join('');
         
-        list.insertBefore(plateItem, list.firstChild);
-        
-        // Keep only last 10 plates
-        while (list.children.length > 10) {
-            list.removeChild(list.lastChild);
-        }
+        // Update plate count
+        this.plateCount = detectedPlates.length;
+        this.updatePlateCount();
     }
 
     updateVehicleCount() {
@@ -240,4 +243,3 @@ class DetectionManager {
         this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
     }
 }
-
